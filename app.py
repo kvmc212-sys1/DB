@@ -1,331 +1,229 @@
 import streamlit as st
-
 import pandas as pd
-
 import plotly.express as px
-
 import plotly.graph_objects as go
-
 import numpy as np
-
 import json
 
-
-
 # --- PAGE CONFIGURATION ---
-
 st.set_page_config(
-
-    page_title="DriftBreaker v3",
-
+    page_title="DriftBreaker AI",
     page_icon="🛡️",
-
     layout="wide",
-
     initial_sidebar_state="expanded"
-
 )
 
-
-
-# --- CSS FOR "EXPENSIVE" LOOK ---
-
+# --- CSS FOR MODERN "FINTECH" LOOK ---
 st.markdown("""
-
 <style>
-
-    .stMetric {background-color: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #e9ecef;}
-
-    div[data-testid="stSidebarNav"] {display: none;} /* Hide default nav */
-
-    .layer-header {font-size: 12px; font-weight: bold; color: #6c757d; margin-top: 10px;}
-
+    /* Clean Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #f8f9fa;
+        border-right: 1px solid #e9ecef;
+    }
+    .nav-header {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #adb5bd;
+        margin-top: 20px;
+        margin-bottom: 5px;
+        letter-spacing: 1px;
+    }
+    
+    /* Metric Cards */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff;
+        border: 1px solid #e9ecef;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    /* Headers */
+    h1, h2, h3 {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
 </style>
-
 """, unsafe_allow_html=True)
 
-
-
-# --- MOCK DATA GENERATOR ---
-
+# --- DATA LOADER (INTEGRATING YOUR BI REPORTS) ---
 @st.cache_data
-
-def load_mock_data():
-
-    # Layer 1: BI Data
-
-    bi_data = pd.DataFrame({
-
-        'Metric': ['Revenue', 'Losses', 'Net Income', 'ROI'],
-
-        'Value': [12.5, 4.2, 8.3, 0.18], # Millions or %
-
-        'Delta': [1.2, -0.5, 1.7, 0.02]
-
+def load_data():
+    # 1. BI TREND DATA (Extracted from your uploaded 2013-2014 reports)
+    # Note the sharp drop in 2014 H2 - this drives the narrative!
+    bi_trends = pd.DataFrame({
+        'Period': ['2013 H1', '2013 H2', '2014 H1', '2014 H2'],
+        'Net_Income': [3900000, 5200000, 5600000, -900000],  # 2014 H2 shows the loss
+        'ROI': [0.051, 0.051, 0.041, -0.005],                # ROI goes negative
+        'Default_Rate': [0.139, 0.147, 0.156, 0.180],        # Risk climbs steady
+        'Active_Loans': [6025, 7850, 9200, 11500]
     })
-
     
-
-    # Layer 2: Attribution Data (Micro vs Macro)
-
+    # 2. ATTRIBUTION (Why did 2014 H2 fail?)
     attr_data = pd.DataFrame({
-
         'Driver': ['Underwriting (Micro)', 'Economic (Macro)', 'Unexplained'],
-
-        'Contribution': [0.65, 0.25, 0.10]
-
+        'Contribution': [0.45, 0.40, 0.15] # Macro impact rises in later periods
     })
-
     
-
-    # Layer 3: Counterfactuals (The "What If")
-
-    strategies = ['Status Quo', 'DriftBreaker (Aggressive)', 'Conservative']
-
+    # 3. STRATEGY SIMULATION (The Fix)
     cf_data = pd.DataFrame({
-
-        'Strategy': strategies,
-
-        'Net_Profit': [4.1, 4.76, 3.8],
-
-        'Approval_Rate': [0.64, 0.748, 0.55]
-
+        'Strategy': ['Status Quo (Baseline)', 'DriftBreaker AI (Aggressive)', 'Conservative'],
+        'Net_Profit': [4090000, 4760000, 3800000],
+        'Approval_Rate': [0.639, 0.748, 0.550],
+        'Color': ['#94a3b8', '#10b981', '#64748b']
     })
-
     
-
-    # Layer 4: Drift Data (Risk Curve)
-
+    # 4. RISK CURVE (The "Month 7" Peak)
     months = np.arange(1, 37)
-
     hazard = 0.005 + 0.025 * np.exp(-((months - 7)**2) / 20) 
-
     risk_curve = pd.DataFrame({'month': months, 'hazard': hazard})
-
     
-
-    # Layer 5: LLM Context (The JSON)
-
-    llm_context = {
-
-        "meta": {"framework": "DriftBreaker v3", "generated_at": "2025-10-27T14:30:00Z"},
-
-        "executive_summary": {
-
-            "status": "ACTION_REQUIRED",
-
-            "message": "Aggressive strategy yields +$660k. Macro sensitivity stable."
-
-        },
-
-        "attribution": {"primary_driver": "MICRO", "micro_contribution": 0.65},
-
-        "warnings": [{"type": "DRIFT", "severity": "LOW", "feature": "income"}]
-
+    # 5. LLM JSON (The Output)
+    llm_json = {
+        "meta": {"model": "DriftBreaker v3", "run_date": "2025-12-07"},
+        "alert": {"status": "CRITICAL", "message": "2014 H2 ROI deterioration detected (-0.5%). Macro factors dominant."},
+        "recommendation": "Switch to Aggressive Strategy (+$670k proj. lift)."
     }
-
     
+    return bi_trends, attr_data, cf_data, risk_curve, llm_json
 
-    return bi_data, attr_data, cf_data, risk_curve, llm_context
+trends_df, attr_df, cf_df, risk_df, llm_json = load_data()
 
-
-
-bi_df, attr_df, cf_df, risk_df, llm_json = load_mock_data()
-
-
-
-# --- SIDEBAR NAVIGATION (THE "LAYERS") ---
-
+# --- SIDEBAR NAVIGATION ---
 with st.sidebar:
-
-    st.title("🛡️ DriftBreaker v3")
-
-    st.caption("Complete Risk Framework")
-
-    st.divider()
-
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python-logo-notext.svg/1200px-Python-logo-notext.svg.png", width=40)
+    st.title("DriftBreaker")
+    st.caption("v3.1 | Lifecycle Engine")
     
-
-    # The Vertical Stack Layout
-
-    st.markdown('<p class="layer-header">LAYER 1: BUSINESS INTELLIGENCE</p>', unsafe_allow_html=True)
-
-    l1 = st.button("📊 Portfolio Health", use_container_width=True)
-
+    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
     
-
-    st.markdown('<p class="layer-header">LAYER 2: ATTRIBUTION</p>', unsafe_allow_html=True)
-
-    l2 = st.button("🔍 Micro vs Macro", use_container_width=True)
-
+    # Navigation Buttons (No more "Layer X")
+    st.markdown('<p class="nav-header">INTELLIGENCE</p>', unsafe_allow_html=True)
+    nav_bi = st.button("📊 Portfolio Health", use_container_width=True)
+    nav_attr = st.button("🔍 Attribution", use_container_width=True)
     
-
-    st.markdown('<p class="layer-header">LAYER 3: COUNTERFACTUALS</p>', unsafe_allow_html=True)
-
-    l3 = st.button("🔮 Strategy Simulation", use_container_width=True)
-
+    st.markdown('<p class="nav-header">SIMULATION</p>', unsafe_allow_html=True)
+    nav_sim = st.button("🔮 Strategy Lab", use_container_width=True)
+    nav_risk = st.button("🚨 Drift Monitor", use_container_width=True)
     
-
-    st.markdown('<p class="layer-header">LAYER 4: DRIFT WARNINGS</p>', unsafe_allow_html=True)
-
-    l4 = st.button("🚨 Early Warning System", use_container_width=True)
-
-    
-
-    st.markdown('<p class="layer-header">LAYER 5: SEMANTIC BRIDGE</p>', unsafe_allow_html=True)
-
-    l5 = st.button("🤖 LLM Context Output", use_container_width=True)
-
+    st.markdown('<p class="nav-header">OUTPUT</p>', unsafe_allow_html=True)
+    nav_llm = st.button("🤖 AI Context Bridge", use_container_width=True)
     
     st.divider()
-
-    st.caption("System Status: ● Online")
-
-
-
-# --- MAIN CONTENT LOGIC ---
-
-# Default to Layer 1 if nothing clicked, or handle state
-
-if 'active_layer' not in st.session_state:
-
-    st.session_state.active_layer = 'L1'
-
-
-
-if l1: st.session_state.active_layer = 'L1'
-
-if l2: st.session_state.active_layer = 'L2'
-
-if l3: st.session_state.active_layer = 'L3'
-
-if l4: st.session_state.active_layer = 'L4'
-
-if l5: st.session_state.active_layer = 'L5'
-
-
-
-layer = st.session_state.active_layer
-
-
-
-# --- RENDER LAYERS ---
-
-
-
-if layer == 'L1':
-
-    st.header("Layer 1: Business Intelligence")
-
-    st.markdown("#### *WHAT happened?*")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    col1.metric("Net Income", "$8.3M", "+$1.7M")
-
-    col2.metric("ROI", "18.2%", "+0.2%")
-
-    col3.metric("Default Rate (PD12)", "4.2%", "-0.5%")
-
-    col4.metric("Active Loans", "12,450", "+8%")
-
     
+    # Scenario Selector
+    st.selectbox("Economic Overlay", ["Baseline (Historical)", "Stress Test (2008)", "Forward Rate Shock"])
+
+# --- NAVIGATION STATE MANAGEMENT ---
+if 'page' not in st.session_state: st.session_state.page = 'BI'
+
+if nav_bi: st.session_state.page = 'BI'
+if nav_attr: st.session_state.page = 'ATTR'
+if nav_sim: st.session_state.page = 'SIM'
+if nav_risk: st.session_state.page = 'RISK'
+if nav_llm: st.session_state.page = 'LLM'
+
+page = st.session_state.page
+
+# --- MAIN CONTENT RENDER ---
+
+if page == 'BI':
+    st.title("Portfolio Health")
+    st.markdown("Top-line performance metrics extracted from bi-annual reports.")
+    
+    # Get latest data point (2014 H2)
+    latest = trends_df.iloc[-1]
+    prev = trends_df.iloc[-2]
+    
+    # Top Metrics Row
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Net Income (H2)", f"${latest['Net_Income']/1e6:.1f}M", f"{(latest['Net_Income']-prev['Net_Income'])/1e6:.1f}M")
+    c2.metric("ROI", f"{latest['ROI']:.1%}", f"{(latest['ROI']-prev['ROI']):.1%}")
+    c3.metric("Default Rate", f"{latest['Default_Rate']:.1%}", f"{(latest['Default_Rate']-prev['Default_Rate']):.1%}", delta_color="inverse")
+    c4.metric("Active Loans", f"{int(latest['Active_Loans']):,}", f"{int(latest['Active_Loans']-prev['Active_Loans']):,}")
 
     st.divider()
-
-    st.subheader("Portfolio Composition")
-
-    # Mock Chart
-
-    chart_data = pd.DataFrame(np.random.randn(20, 3), columns=["A", "B", "C"])
-
-    st.line_chart(chart_data)
-
-
-
-elif layer == 'L2':
-
-    st.header("Layer 2: Attribution Analysis")
-
-    st.markdown("#### *WHY did it happen?*")
-
     
+    # Charts Row
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.subheader("Profitability Trend")
+        fig_prof = px.bar(trends_df, x='Period', y='Net_Income', 
+                          title="Net Income by Half-Year", text_auto='.2s',
+                          color='Net_Income', color_continuous_scale='RdBu')
+        st.plotly_chart(fig_prof, use_container_width=True)
+        
+    with col_right:
+        st.subheader("Risk Deterioration")
+        fig_risk = px.line(trends_df, x='Period', y='Default_Rate', 
+                           title="Default Rate vs. ROI", markers=True)
+        fig_risk.add_scatter(x=trends_df['Period'], y=trends_df['ROI'], mode='lines+markers', name='ROI', yaxis='y2')
+        
+        # Dual Axis layout
+        fig_risk.update_layout(yaxis2=dict(overlaying='y', side='right', title='ROI', showgrid=False))
+        st.plotly_chart(fig_risk, use_container_width=True)
 
+elif page == 'ATTR':
+    st.title("Attribution Analysis")
+    st.markdown("Why is performance degrading? Decomposing Micro vs. Macro drivers.")
+    
     c1, c2 = st.columns([1, 2])
-
     with c1:
-
-        st.info("**Primary Driver: MICRO**\n\nDefaults are currently driven by underwriting selection, not economic headwinds.")
-
+        st.info("""
+        **Insight:** While 2013 was driven by **Micro** factors (selection), 2014 H2 shows a spike in **Macro** contribution. 
+        
+        This indicates the portfolio is becoming sensitive to external economic stress.
+        """)
+        st.metric("Macro Contribution", "40%", "+15% YoY")
+    
     with c2:
-
-        fig = px.pie(attr_df, values='Contribution', names='Driver', hole=0.4, 
-
-                     title="Variance Decomposition", color_discrete_sequence=px.colors.sequential.RdBu)
-
+        fig = px.pie(attr_df, values='Contribution', names='Driver', hole=0.5, 
+                     title="Variance Decomposition (2014 H2)", 
+                     color_discrete_sequence=px.colors.qualitative.Prism)
         st.plotly_chart(fig, use_container_width=True)
 
-
-
-elif layer == 'L3':
-
-    st.header("Layer 3: Counterfactual Analysis")
-
-    st.markdown("#### *WHAT IF we acted differently?*")
-
+elif page == 'SIM':
+    st.title("Strategy Lab")
+    st.markdown("Counterfactual analysis: What if we used the DriftBreaker model?")
     
-
-    st.plotly_chart(px.bar(cf_df, x='Strategy', y='Net_Profit', color='Strategy', 
-
-                           title="Net Profit by Strategy (Projected)", text_auto=True), use_container_width=True)
-
+    # Financial Impact Chart
+    fig = px.bar(cf_df, x='Strategy', y='Net_Profit', color='Color', 
+                 title="Projected Net Profit by Strategy", text_auto='.3s')
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
     
+    # Delta Metric
+    delta = cf_df.loc[1, 'Net_Profit'] - cf_df.loc[0, 'Net_Profit']
+    st.success(f"**Recommendation:** The Aggressive Strategy yields **+${delta/1e6:.2f}M** in additional profit while maintaining acceptable risk boundaries.")
 
-    st.success("Recommendation: The **DriftBreaker (Aggressive)** strategy captures an additional **$660k** in value vs Status Quo.")
-
-
-
-elif layer == 'L4':
-
-    st.header("Layer 4: Drift & Early Warning")
-
-    st.markdown("#### *WHAT is coming?*")
-
+elif page == 'RISK':
+    st.title("Drift & Early Warning")
+    st.markdown("Real-time structural monitoring of the risk curve.")
     
-
     c1, c2 = st.columns(2)
-
-    c1.metric("Feature PSI", "0.089", "Stable")
-
-    c2.metric("Concept Drift", "Month 7 Peak", "Confirmed")
-
+    c1.metric("Feature PSI", "0.089", "Stable (<0.1)")
+    c2.metric("Peak Hazard Timing", "Month 7", "Confirmed")
     
-
     st.subheader("The 'Month 7' Hazard Peak")
-
     fig = px.line(risk_df, x='month', y='hazard', markers=True, title="Monthly Hazard Rate",
-
                   labels={'hazard': 'Probability of Default'})
-
-    fig.add_vline(x=7, line_dash="dash", line_color="red", annotation_text="Structural Peak")
-
+    fig.update_traces(line_color='#ef4444', line_width=3)
+    
+    # Add annotation for the peak
+    fig.add_shape(type="line", x0=7, y0=0, x1=7, y1=max(risk_df['hazard']),
+                  line=dict(color="Gray", width=1, dash="dash"))
+    fig.add_annotation(x=7, y=max(risk_df['hazard']), text="Peak Risk", showarrow=True, arrowhead=1)
+    
     st.plotly_chart(fig, use_container_width=True)
 
-
-
-elif layer == 'L5':
-
-    st.header("Layer 5: LLM-Ready Output")
-
-    st.markdown("#### *How do we explain it?*")
-
-    st.markdown("This is the exact JSON payload sent to the LLM to generate the Executive Summary.")
-
+elif page == 'LLM':
+    st.title("AI Context Bridge")
+    st.markdown("Raw semantic payload for Large Language Model interpretation.")
     
-
-    st.json(llm_json)
-
+    st.code(json.dumps(llm_json, indent=2), language="json")
     
-
-    st.download_button("Download JSON Payload", data=json.dumps(llm_json), file_name="llm_context.json")
-
+    st.download_button("Download Context JSON", data=json.dumps(llm_json), file_name="driftbreaker_context.json")
