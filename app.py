@@ -85,7 +85,7 @@ def get_gemini_summary(context_json):
     
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         prompt = f"""
         You are the Chief Risk Officer. Analyze this JSON risk context and write a 
@@ -347,4 +347,5 @@ elif page == 'API':
                 "attribution": {"micro": base_pd - 0.02, "macro": 0.02},
                 "recommendation": "Approve based on DriftBreaker EV model."
             })
+
 
